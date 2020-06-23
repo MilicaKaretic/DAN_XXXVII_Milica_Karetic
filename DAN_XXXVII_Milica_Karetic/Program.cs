@@ -15,6 +15,9 @@ namespace DAN_XXXVII_Milica_Karetic
         public static List<int> list = new List<int>(1000);
         public static string fileName = "FileRoutes.txt";
         public static List<int> routes = new List<int>(10);
+        public static List<Thread> trucks = new List<Thread>();
+
+        public static Semaphore semaphore = new Semaphore(2, 2);
 
         public static void GenerateNumbers()
         {
@@ -52,17 +55,75 @@ namespace DAN_XXXVII_Milica_Karetic
                 }
 
                 tempList.Sort();
-                for (int i = 0; i < 10; i++)
+                IEnumerable<int> distinctRoutes = tempList.Distinct();
+                int a = 0;
+                foreach (int route in distinctRoutes)
                 {
-                    routes.Add(tempList[i]);
+                    if (a < 10)
+                    {
+                        routes.Add(route);
+                        a++;
+                    }
+                    else
+                        break;                   
                 }
+
                 Console.WriteLine("Routes picked. You can start loading. After loading you can go.");
                 Console.WriteLine("Routes:");
                 for (int i = 0; i < routes.Count; i++)
                 {
                     Console.Write(routes[i] + " ");
                 }
+                Console.WriteLine();
             }
+
+        }
+        static int count = 0;
+        public static void Loading()
+        {
+
+            int num = rnd.Next(500, 5000);
+            semaphore.WaitOne();
+
+            Console.WriteLine(Thread.CurrentThread.Name + " is loading...");
+            Thread.Sleep(num);
+
+            Console.WriteLine(Thread.CurrentThread.Name + " is loaded...");
+
+            semaphore.Release();
+            lock (locker)
+            {
+                count++;
+            }
+            while(count < 10)
+            {
+                Thread.Sleep(0);
+            }
+
+
+            Console.WriteLine(Thread.CurrentThread.Name + "'s on his way. You can expect delivery between 500 ms and 5 sec");
+            Thread.Sleep(4000);
+
+
+            int deliveryTime = rnd.Next(500, 5000);
+
+            if(deliveryTime > 3000)
+            {
+                Console.WriteLine("Delivery canceled. " + Thread.CurrentThread.Name + " returns to the starting point.");
+                Thread.Sleep(3000);
+                Console.WriteLine(Thread.CurrentThread.Name + " returned to the starting point.");
+            }
+            else
+            {
+                Console.WriteLine(Thread.CurrentThread.Name + " is unloading...");
+                Thread.Sleep(num / 2);
+                Console.WriteLine(Thread.CurrentThread.Name + " is unloaded...");
+            }
+
+            //for (int i = 0; i < trucks.Count; i++)
+            //{
+            //    Console.WriteLine(trucks[i].Name + " will go on route " + routes[i]);
+            //}
 
         }
 
@@ -83,6 +144,23 @@ namespace DAN_XXXVII_Milica_Karetic
 
             t1.Join();
             t2.Join();
+
+            for (int i = 0; i < 10; i++)
+            {
+                Thread t = new Thread(new ThreadStart(Loading))
+                {
+                    Name = string.Format("Truck_{0}", i + 1)
+                };
+                trucks.Add(t);
+            }
+            for (int i = 0; i < trucks.Count; i++)
+            {
+                trucks[i].Start();
+            }
+            for (int i = 0; i < trucks.Count; i++)
+            {
+                trucks[i].Join();
+            }
 
             Console.ReadKey();
         }
