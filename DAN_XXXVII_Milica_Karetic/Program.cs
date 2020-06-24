@@ -69,24 +69,26 @@ namespace DAN_XXXVII_Milica_Karetic
                 }
 
                 Console.WriteLine("Routes picked. You can start loading. After loading you can go.");
-                Console.WriteLine("Routes:");
+                Console.WriteLine("Best routes:");
                 for (int i = 0; i < routes.Count; i++)
                 {
                     Console.Write(routes[i] + " ");
                 }
                 Console.WriteLine();
+                Console.WriteLine();
             }
 
         }
-        static int count = 0;
-        public static void Loading()
+        static int count = 0, count2 = 0;
+
+        public static void Loading(object route)
         {
 
-            int num = rnd.Next(500, 5000);
+            int loadingTime = rnd.Next(500, 5000);
             semaphore.WaitOne();
 
-            Console.WriteLine(Thread.CurrentThread.Name + " is loading...");
-            Thread.Sleep(num);
+            Console.WriteLine(Thread.CurrentThread.Name + " is loading " + loadingTime + " ms.");
+            Thread.Sleep(loadingTime);
 
             Console.WriteLine(Thread.CurrentThread.Name + " is loaded...");
 
@@ -100,30 +102,39 @@ namespace DAN_XXXVII_Milica_Karetic
                 Thread.Sleep(0);
             }
 
+            Console.WriteLine(Thread.CurrentThread.Name + " will drive on route " + route);
+
+            lock (locker)
+            {
+                count2++;
+            }
+            while (count2 < 10)
+            {
+                Thread.Sleep(0);
+            }
 
             Console.WriteLine(Thread.CurrentThread.Name + "'s on his way. You can expect delivery between 500 ms and 5 sec");
-            Thread.Sleep(4000);
-
 
             int deliveryTime = rnd.Next(500, 5000);
 
             if(deliveryTime > 3000)
             {
-                Console.WriteLine("Delivery canceled. " + Thread.CurrentThread.Name + " returns to the starting point.");
+                Thread.Sleep(3000);
+                Console.WriteLine("Delivery canceled beacuse expected delivery time was " + deliveryTime + ". " + Thread.CurrentThread.Name + " returns to the starting point for 3000 ms.");
                 Thread.Sleep(3000);
                 Console.WriteLine(Thread.CurrentThread.Name + " returned to the starting point.");
             }
             else
             {
-                Console.WriteLine(Thread.CurrentThread.Name + " is unloading...");
-                Thread.Sleep(num / 2);
+                Thread.Sleep(deliveryTime);
+                Console.WriteLine(Thread.CurrentThread.Name + " arrived to the destination for " + deliveryTime + " ms.");
+
+                int unloadingTime = Convert.ToInt32(loadingTime / 1.5);
+                Console.WriteLine(Thread.CurrentThread.Name + " is unloading " + unloadingTime + " ms.");
+                Thread.Sleep(unloadingTime);
+
                 Console.WriteLine(Thread.CurrentThread.Name + " is unloaded...");
             }
-
-            //for (int i = 0; i < trucks.Count; i++)
-            //{
-            //    Console.WriteLine(trucks[i].Name + " will go on route " + routes[i]);
-            //}
 
         }
 
@@ -147,7 +158,7 @@ namespace DAN_XXXVII_Milica_Karetic
 
             for (int i = 0; i < 10; i++)
             {
-                Thread t = new Thread(new ThreadStart(Loading))
+                Thread t = new Thread(Loading)
                 {
                     Name = string.Format("Truck_{0}", i + 1)
                 };
@@ -155,7 +166,7 @@ namespace DAN_XXXVII_Milica_Karetic
             }
             for (int i = 0; i < trucks.Count; i++)
             {
-                trucks[i].Start();
+                trucks[i].Start(routes[i]);
             }
             for (int i = 0; i < trucks.Count; i++)
             {
