@@ -79,20 +79,50 @@ namespace DAN_XXXVII_Milica_Karetic
             }
 
         }
-        static int count = 0, count2 = 0;
+        static int restartCount = 0, count2 = 0, count = 0;
+        static int numAvailable = 2;
+        
+        public static void TwoTrucksLoading()
+        {
+            while (true)
+            {
+                lock (locker)
+                {
+                    count2++;
+                    if (count2 > 2)
+                        Thread.Sleep(0);
+                    else
+                    {
+                        restartCount++;
+                        break;
+                    }
+                }
+            }
+        }
 
         public static void Loading(object route)
         {
 
-            int loadingTime = rnd.Next(500, 5000);
-            semaphore.WaitOne();
+            TwoTrucksLoading();
 
+            int loadingTime = rnd.Next(500, 5000);
+
+            semaphore.WaitOne();
+ 
             Console.WriteLine(Thread.CurrentThread.Name + " is loading " + loadingTime + " ms.");
             Thread.Sleep(loadingTime);
 
             Console.WriteLine(Thread.CurrentThread.Name + " is loaded...");
 
             semaphore.Release();
+
+            restartCount--;
+            if(restartCount == 0)
+            {
+                count2 = 0;
+            }
+
+
             lock (locker)
             {
                 count++;
@@ -103,15 +133,6 @@ namespace DAN_XXXVII_Milica_Karetic
             }
 
             Console.WriteLine(Thread.CurrentThread.Name + " will drive on route " + route);
-
-            lock (locker)
-            {
-                count2++;
-            }
-            while (count2 < 10)
-            {
-                Thread.Sleep(0);
-            }
 
             Console.WriteLine(Thread.CurrentThread.Name + "'s on his way. You can expect delivery between 500 ms and 5 sec");
 
