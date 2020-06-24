@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace DAN_XXXVII_Milica_Karetic
 {
@@ -12,13 +10,16 @@ namespace DAN_XXXVII_Milica_Karetic
     {
         private static object locker = new object();
         static Random rnd = new Random();
-        public static List<int> list = new List<int>(1000);
         public static string fileName = "FileRoutes.txt";
-        public static List<int> routes = new List<int>(10);
+        public static List<int> bestRoutes = new List<int>(10);
         public static List<Thread> trucks = new List<Thread>();
+        public static SemaphoreSlim semaphore = new SemaphoreSlim(2, 2);
 
-        public static Semaphore semaphore = new Semaphore(2, 2);
+        static int restartCount = 0, enterCount = 0, count = 0;
 
+        /// <summary>
+        /// Generate 1000 random numbers and write them to file
+        /// </summary>
         public static void GenerateNumbers()
         {
             int num;
@@ -30,7 +31,6 @@ namespace DAN_XXXVII_Milica_Karetic
                     for (int i = 0; i < 1000; i++)
                     {
                         num = rnd.Next(1, 5001);
-                        list.Add(num);
                         sw.WriteLine(num);
                     }
                 }
@@ -38,8 +38,13 @@ namespace DAN_XXXVII_Milica_Karetic
             }
         }
 
+        /// <summary>
+        /// Method that pick best routes for trucks from file
+        /// </summary>
         public static void PickRoutes()
         {
+            Console.WriteLine("Manager is waiting for routes...");
+            //temporary list for all numbers from file
             List<int> tempList = new List<int>();
             lock (fileName)
             {
@@ -54,14 +59,18 @@ namespace DAN_XXXVII_Milica_Karetic
                     }
                 }
 
+                //sort list ascending
                 tempList.Sort();
+
+                //get distinct values from temporary list
                 IEnumerable<int> distinctRoutes = tempList.Distinct();
                 int a = 0;
                 foreach (int route in distinctRoutes)
                 {
                     if (a < 10)
                     {
-                        routes.Add(route);
+                        //add 10 best routes to bestRoutes list (first 10 routes from sorted list)
+                        bestRoutes.Add(route);
                         a++;
                     }
                     else
@@ -69,28 +78,75 @@ namespace DAN_XXXVII_Milica_Karetic
                 }
 
                 Console.WriteLine("Routes picked. You can start loading. After loading you can go.");
-                Console.WriteLine("Routes:");
-                for (int i = 0; i < routes.Count; i++)
+                Console.WriteLine("Best routes:");
+                for (int i = 0; i < bestRoutes.Count; i++)
                 {
-                    Console.Write(routes[i] + " ");
+                    Console.Write(bestRoutes[i] + " ");
                 }
+                Console.WriteLine();
                 Console.WriteLine();
             }
 
         }
-        static int count = 0;
-        public static void Loading()
+        
+        
+        /// <summary>
+        /// Method that ensure trucks to load two by two
+        /// </summary>
+        public static void TwoTrucksLoading()
         {
+            while (true)
+            {
+                lock (locker)
+                {
+                    enterCount++;
+                    if (enterCount > 2)
+                        Thread.Sleep(0);
+                    else
+                    {
+                        restartCount++;
+                        break;
+                    }
+                }
+            }
+        }
 
-            int num = rnd.Next(500, 5000);
-            semaphore.WaitOne();
+        /// <summary>
+        /// Method for loading truck
+        /// </summary>
+        /// <param name="loadingTime">Loading time</param>
+        public static void LoadTrucks(int loadingTime)
+        {
+            semaphore.Wait();
 
-            Console.WriteLine(Thread.CurrentThread.Name + " is loading...");
-            Thread.Sleep(num);
+            Console.WriteLine(Thread.CurrentThread.Name + " is loading " + loadingTime + " ms.");
+            Thread.Sleep(loadingTime);
 
             Console.WriteLine(Thread.CurrentThread.Name + " is loaded...");
 
             semaphore.Release();
+        }
+
+        /// <summary>
+        /// Method for loading trucks
+        /// </summary>
+        /// <param name="route">Route on which truck will go</param>
+        public static void Loading(object route)
+        {
+            //call method
+            TwoTrucksLoading();
+
+            int loadingTime = rnd.Next(500, 5001);
+
+            LoadTrucks(loadingTime);
+           
+            restartCount--;
+            if(restartCount == 0)
+            {
+                enterCount = 0;
+            }
+
+            //wait all trucks to load
             lock (locker)
             {
                 count++;
@@ -100,31 +156,48 @@ namespace DAN_XXXVII_Milica_Karetic
                 Thread.Sleep(0);
             }
 
+            //set route for each truck
+            Console.WriteLine(Thread.CurrentThread.Name + " will drive on route " + route);
 
             Console.WriteLine(Thread.CurrentThread.Name + "'s on his way. You can expect delivery between 500 ms and 5 sec");
-            Thread.Sleep(4000);
 
+            //delivery time
+            int deliveryTime = rnd.Next(500, 5001);
 
-            int deliveryTime = rnd.Next(500, 5000);
+            UnloadTrucks(loadingTime, deliveryTime);
+           
+        }
 
-            if(deliveryTime > 3000)
+        /// <summary>
+        /// Method for unloading trucks
+        /// </summary>
+        /// <param name="loadingTime">Loading time</param>
+        /// <param name="deliveryTime">Delivery time</param>
+        public static void UnloadTrucks(int loadingTime, int deliveryTime)
+        {
+            //if delivery time is >3000 delivery cancels and truck returns to starting point
+            if (deliveryTime > 3000)
             {
-                Console.WriteLine("Delivery canceled. " + Thread.CurrentThread.Name + " returns to the starting point.");
+                //go
+                Thread.Sleep(3000);
+                Console.WriteLine("Delivery canceled beacuse expected delivery time was " + deliveryTime + ". " + Thread.CurrentThread.Name + " returns to the starting point for 3000 ms.");
+                //return to start point
                 Thread.Sleep(3000);
                 Console.WriteLine(Thread.CurrentThread.Name + " returned to the starting point.");
             }
             else
             {
-                Console.WriteLine(Thread.CurrentThread.Name + " is unloading...");
-                Thread.Sleep(num / 2);
+                //go
+                Thread.Sleep(deliveryTime);
+                Console.WriteLine(Thread.CurrentThread.Name + " arrived to the destination for " + deliveryTime + " ms.");
+
+                int unloadingTime = Convert.ToInt32(loadingTime / 1.5);
+                Console.WriteLine(Thread.CurrentThread.Name + " is unloading " + unloadingTime + " ms.");
+                //unloading
+                Thread.Sleep(unloadingTime);
+
                 Console.WriteLine(Thread.CurrentThread.Name + " is unloaded...");
             }
-
-            //for (int i = 0; i < trucks.Count; i++)
-            //{
-            //    Console.WriteLine(trucks[i].Name + " will go on route " + routes[i]);
-            //}
-
         }
 
         static void Main(string[] args)
@@ -145,18 +218,21 @@ namespace DAN_XXXVII_Milica_Karetic
             t1.Join();
             t2.Join();
 
+            //create 10 trucks
             for (int i = 0; i < 10; i++)
             {
-                Thread t = new Thread(new ThreadStart(Loading))
+                Thread t = new Thread(Loading)
                 {
                     Name = string.Format("Truck_{0}", i + 1)
                 };
                 trucks.Add(t);
             }
+            //start all 10 threads
             for (int i = 0; i < trucks.Count; i++)
             {
-                trucks[i].Start();
+                trucks[i].Start(bestRoutes[i]);
             }
+            //join them
             for (int i = 0; i < trucks.Count; i++)
             {
                 trucks[i].Join();
