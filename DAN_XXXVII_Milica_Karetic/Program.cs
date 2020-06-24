@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace DAN_XXXVII_Milica_Karetic
 {
@@ -45,6 +43,7 @@ namespace DAN_XXXVII_Milica_Karetic
         /// </summary>
         public static void PickRoutes()
         {
+            Console.WriteLine("Manager is waiting for routes...");
             //temporary list for all numbers from file
             List<int> tempList = new List<int>();
             lock (fileName)
@@ -136,7 +135,9 @@ namespace DAN_XXXVII_Milica_Karetic
         {
             //call method
             TwoTrucksLoading();
-            int loadingTime = rnd.Next(500, 5000);
+
+            int loadingTime = rnd.Next(500, 5001);
+
             LoadTrucks(loadingTime);
            
             restartCount--;
@@ -161,7 +162,7 @@ namespace DAN_XXXVII_Milica_Karetic
             Console.WriteLine(Thread.CurrentThread.Name + "'s on his way. You can expect delivery between 500 ms and 5 sec");
 
             //delivery time
-            int deliveryTime = rnd.Next(500, 5000);
+            int deliveryTime = rnd.Next(500, 5001);
 
             UnloadTrucks(loadingTime, deliveryTime);
            
